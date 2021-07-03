@@ -1,4 +1,3 @@
-from numpy.core.defchararray import title
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 from PIL import Image
@@ -44,11 +43,10 @@ class Netz(nn.Module):
 
 model = torch.load('./model/mnist.pth')
 
-def transform_image(image):  # convert all images into a similar size
+def transform_image(image):
     transforms = T.ToTensor()
     return transforms(image)
 
-# given the kind of input, chooses the model to predict on, returns a numpy array
 
 def get_prediction(image_tensor):
     image_tensor = image_tensor.unsqueeze_(0)
@@ -81,8 +79,8 @@ def predict(image):
     return prediction
 
 
-def np_to_df(outputs):  # Create a 2D array for the dataframe instead of a 1D array
-    length = outputs.shape[0]  # Total outputs
+def np_to_df(outputs):
+    length = outputs.shape[0]
     arr = []
     for pos in range(0, length):
         line = [0]*10
@@ -91,11 +89,8 @@ def np_to_df(outputs):  # Create a 2D array for the dataframe instead of a 1D ar
     return arr
 
 
-# Specify brush parameters and drawing mode
 stroke_width = st.sidebar.slider("Stroke width: ", 1, 100, 25)
 
-
-# Create a canvas component
 canvas_result = st_canvas(
     stroke_width=stroke_width,
     stroke_color="#fff",
@@ -122,8 +117,7 @@ if canvas_result.image_data is not None and result:
     prediction =  outputs.squeeze().detach().numpy()
     outputs = prediction
     ind_max = np.where(outputs == max(outputs))[
-        0][0]  # Index of the max element
-    # Converting index to equivalent letter
+        0][0]
     progress_bar = st.progress(0)
     for i in range(100):
         progress_bar.progress(i + 1)
