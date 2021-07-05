@@ -21,7 +21,6 @@ st.set_page_config(
 
 hide_streamlit_style = """
             <style>
-            # MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             </style>
             """
@@ -36,8 +35,8 @@ with st.sidebar:
             """
             <h6>Made in &nbsp<img src="https://streamlit.io/images/brand/streamlit-mark-color.png" alt="Streamlit logo" height="16">&nbsp by <a href="https://robertfoerster.com/">Robert</a></h6>
             <br>
-            <a href="https://github.com/foersterrobert/MNIST-Drawer"><img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Logo.png" alt="Streamlit logo" height="20"></a>
-            <a href="https://www.linkedin.com/in/rfoerster/" style='margin-left: 10px;'><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/LinkedIn_Logo.svg/1000px-LinkedIn_Logo.svg.png" alt="Streamlit logo" height="26"></a>
+            <a href="https://github.com/foersterrobert/MNIST-Drawer" target='_blank'><img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Logo.png" alt="Streamlit logo" height="20"></a>
+            <a href="https://www.linkedin.com/in/rfoerster/" target='_blank' style='margin-left: 10px;'><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/LinkedIn_Logo.svg/1000px-LinkedIn_Logo.svg.png" alt="Streamlit logo" height="26"></a>
             """,
             unsafe_allow_html=True,
         )
