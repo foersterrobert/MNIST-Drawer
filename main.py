@@ -11,10 +11,36 @@ import torch.nn.functional as F
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-from torchvision import datasets, transforms
-from torch.autograd import Variable
-import os
+
+
+st.set_page_config(
+    page_title="MNIST-Drawer",
+    page_icon=":pencil:",
+)
+
+
+hide_streamlit_style = """
+            <style>
+            # MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+st.title("MNIST-Drawer :pencil:")
+
+with st.sidebar:
+    stroke_width = st.slider("Stroke width: ", 1, 100, 25)
+    framework = st.selectbox("Model:", options=['Pytorch', 'Keras'])
+    st.markdown("---")
+    st.markdown(
+            """
+            <h6>Made in &nbsp<img src="https://streamlit.io/images/brand/streamlit-mark-color.png" alt="Streamlit logo" height="16">&nbsp by <a href="https://robertfoerster.com/">Robert</a></h6>
+            <br>
+            <a href="https://github.com/foersterrobert/MNIST-Drawer"><img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Logo.png" alt="Streamlit logo" height="20"></a>
+            <a href="https://www.linkedin.com/in/rfoerster/" style='margin-left: 10px;'><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/LinkedIn_Logo.svg/1000px-LinkedIn_Logo.svg.png" alt="Streamlit logo" height="26"></a>
+            """,
+            unsafe_allow_html=True,
+        )
 
 class Netz(nn.Module):
     def __init__(self):
@@ -47,29 +73,11 @@ def transform_image(image):
     transforms = T.ToTensor()
     return transforms(image)
 
-
 def get_prediction(image_tensor):
     image_tensor = image_tensor.unsqueeze_(0)
     outputs = model(image_tensor)
     # _, predicted = torch.max(outputs.data, 1)
     return outputs.squeeze().detach().numpy()
-
-
-st.set_page_config(
-    page_title="MNIST-Drawer",
-    page_icon=":pencil:",
-)
-
-
-hide_streamlit_style = """
-            <style>
-            # MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-st.title("MNIST-Drawer :pencil:")
-
 
 def predict(image):
     image = Image.fromarray((image[:, :, 0]).astype(np.uint8))
@@ -77,7 +85,6 @@ def predict(image):
     tensor = transform_image(image)
     prediction = get_prediction(tensor)
     return prediction
-
 
 def np_to_df(outputs):
     length = outputs.shape[0]
@@ -89,19 +96,6 @@ def np_to_df(outputs):
     return arr
 
 
-with st.sidebar:
-    stroke_width = st.slider("Stroke width: ", 1, 100, 25)
-    framework = st.selectbox("Model:", options=['Pytorch', 'Keras --Soon'])
-    st.markdown("---")
-    st.markdown(
-            """
-            <h6>Made in &nbsp<img src="https://streamlit.io/images/brand/streamlit-mark-color.png" alt="Streamlit logo" height="16">&nbsp by <a href="https://robertfoerster.com/">Robert</a></h6>
-            <br>
-            <a href="https://github.com/foersterrobert/MNIST-Drawer"><img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Logo.png" alt="Streamlit logo" height="20"></a>
-            <a href="https://www.linkedin.com/in/rfoerster/" style='margin-left: 10px;'><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/LinkedIn_Logo.svg/1000px-LinkedIn_Logo.svg.png" alt="Streamlit logo" height="26"></a>
-            """,
-            unsafe_allow_html=True,
-        )
 
 canvas_result = st_canvas(
     stroke_width=stroke_width,
@@ -140,3 +134,71 @@ if canvas_result.image_data is not None and result:
                               '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'], columns=[
                               '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
     st.bar_chart(chart_data)
+
+accuracies = {
+    'Pytorch': [97, 128, 20],
+    'Keras': [94, 128, 20]
+     }
+
+st.markdown("---")
+st.subheader(f'Model: {framework} | Accuracy: {accuracies[framework][0]}%')
+st.write(f'Batchsize: {accuracies[framework][1]}, Epochs: {accuracies[framework][2]}')
+if framework == 'Pytorch':
+    st.code(
+        '''
+        class Netz(nn.Module):
+            def __init__(self):
+                super(Netz, self).__init__()
+                self.conv1 = nn.Conv2d(1, 32, 3, 1)
+                self.conv2 = nn.Conv2d(32, 64, 3, 1)
+                self.dropout1 = nn.Dropout(0.25)
+                self.dropout2 = nn.Dropout(0.5)
+                self.fc1 = nn.Linear(9216, 128)
+                self.fc2 = nn.Linear(128, 10)
+
+            def forward(self, x):
+                x = self.conv1(x)
+                x = F.relu(x)
+                x = self.conv2(x)
+                x = F.relu(x)
+                x = F.max_pool2d(x, 2)
+                x = self.dropout1(x)
+                x = torch.flatten(x, 1)
+                x = self.fc1(x)
+                x = F.relu(x)
+                x = self.dropout2(x)
+                x = self.fc2(x)
+                output = F.log_softmax(x, dim=1)
+                return output
+
+        optimizer = optim.SGD(model.parameters(), lr=0.1, momentum=0.8)
+        '''
+    )
+
+elif framework == 'Keras':
+    st.code(
+        '''
+        model = Sequential()
+        model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', input_shape=(28, 28, 1)))
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Flatten())
+        model.add(Dense(100, activation='relu', kernel_initializer='he_uniform'))
+        model.add(Dense(10, activation='softmax'))
+        # compile model
+        opt = SGD(lr=0.01, momentum=0.9)
+        model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
+        return model
+        '''
+    )
+
+st.markdown("---")
+
+st.markdown(
+            """
+            <div style='display:flex; align-items: center; justify-content: center; gap: 5px;'>
+                <h3>All code on </h3>
+                <a href="https://github.com/foersterrobert/MNIST-Drawer" target='_blank'><img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Logo.png" alt="Streamlit logo" height="18"></a>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
