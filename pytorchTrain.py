@@ -76,7 +76,7 @@ model.eval()
 
 
 model_folder_path = './model'
-file_name='PytorchDrawer.pth'
+file_name='Pytorch.pth'
 if not os.path.exists(model_folder_path):
     os.makedirs(model_folder_path)
 

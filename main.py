@@ -4,42 +4,12 @@ from PIL import Image
 import numpy as np
 import pandas as pd
 import time
+from tensorflow.python.keras.backend import arange
 import torch
 import torch.nn as nn
 import torchvision.transforms as T
 import torch.nn.functional as F
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-
-st.set_page_config(
-    page_title="MNIST-Drawer",
-    page_icon=":pencil:",
-)
-
-
-hide_streamlit_style = """
-            <style>
-            footer {visibility: hidden;}
-            </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-st.title("MNIST-Drawer :pencil:")
-
-with st.sidebar:
-    stroke_width = st.slider("Stroke width: ", 1, 100, 25)
-    framework = st.selectbox("Model:", options=['Pytorch', 'Keras'])
-    st.markdown("---")
-    st.markdown(
-            """
-            <h6>Made in &nbsp<img src="https://streamlit.io/images/brand/streamlit-mark-color.png" alt="Streamlit logo" height="16">&nbsp by <a href="https://robertfoerster.com/">Robert</a></h6>
-            <br>
-            <a href="https://github.com/foersterrobert/MNIST-Drawer" target='_blank'><img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Logo.png" alt="Streamlit logo" height="20"></a>
-            <a href="https://www.linkedin.com/in/rfoerster/" target='_blank' style='margin-left: 10px;'><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/LinkedIn_Logo.svg/1000px-LinkedIn_Logo.svg.png" alt="Streamlit logo" height="26"></a>
-            """,
-            unsafe_allow_html=True,
-        )
+from tensorflow import keras
 
 class Netz(nn.Module):
     def __init__(self):
@@ -65,24 +35,35 @@ class Netz(nn.Module):
         x = self.fc2(x)
         return x
 
-model = torch.load('./model/mnist.pth')
+PytorchModel = torch.load('./model/Pytorch.pth')
+KerasModel = keras.models.load_model('./model/Keras.pth')
 
-def transform_image(image):
-    transforms = T.ToTensor()
-    return transforms(image)
+st.set_page_config(
+    page_title="MNIST-Drawer",
+    page_icon=":pencil:",
+)
 
-def get_prediction(image_tensor):
-    image_tensor = image_tensor.unsqueeze_(0)
-    outputs = model(image_tensor)
-    # _, predicted = torch.max(outputs.data, 1)
-    return outputs.squeeze().detach().numpy()
+hide_streamlit_style = """
+            <style>
+            footer {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+st.title("MNIST-Drawer :pencil:")
 
-def predict(image):
-    image = Image.fromarray((image[:, :, 0]).astype(np.uint8))
-    image = image.resize((28, 28))
-    tensor = transform_image(image)
-    prediction = get_prediction(tensor)
-    return prediction
+with st.sidebar:
+    stroke_width = st.slider("Stroke width: ", 1, 100, 25)
+    framework = st.selectbox("Model:", options=['Pytorch', 'Keras'])
+    st.markdown("---")
+    st.markdown(
+            """
+            <h6>Made in &nbsp<img src="https://streamlit.io/images/brand/streamlit-mark-color.png" alt="Streamlit logo" height="16">&nbsp by <a href="https://robertfoerster.com/">Robert</a></h6>
+            <br>
+            <a href="https://github.com/foersterrobert/MNIST-Drawer" target='_blank'><img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Logo.png" alt="Streamlit logo" height="20"></a>
+            <a href="https://www.linkedin.com/in/rfoerster/" target='_blank' style='margin-left: 10px;'><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/LinkedIn_Logo.svg/1000px-LinkedIn_Logo.svg.png" alt="Streamlit logo" height="26"></a>
+            """,
+            unsafe_allow_html=True,
+        )
 
 def np_to_df(outputs):
     length = outputs.shape[0]
@@ -92,8 +73,6 @@ def np_to_df(outputs):
         line[pos] = outputs[pos]
         arr.append(line)
     return arr
-
-
 
 canvas_result = st_canvas(
     stroke_width=stroke_width,
@@ -108,20 +87,26 @@ canvas_result = st_canvas(
 result = st.button("Predict")
 
 if canvas_result.image_data is not None and result:
-    # outputs = predict(canvas_result.image_data)
-    image = Image.fromarray((canvas_result.image_data[:, :, 0]).astype(np.uint8))
-    image = image.resize((28, 28))
-    tensor = transform_image(image)
-    # prediction = get_prediction(tensor)
-    image_tensor = tensor.unsqueeze_(0)
-    image_tensor = (image_tensor - 0.1307) / 0.3081
-    # image_tensor[image_tensor==0.0000] = -0.4242
-    outputs = model(image_tensor)
-    # _, predicted = torch.max(outputs.data, 1)
-    prediction =  outputs.squeeze().detach().numpy()
-    outputs = prediction
-    ind_max = np.where(outputs == max(outputs))[
-        0][0]
+    if framework == 'Pytorch':
+        image = Image.fromarray((canvas_result.image_data[:, :, 0]).astype(np.uint8))
+        image = image.resize((28, 28))
+        transforms = T.ToTensor()
+        tensor = transforms(image)
+        image_tensor = tensor.unsqueeze_(0)
+        image_tensor = (image_tensor - 0.1307) / 0.3081
+        outputs = PytorchModel(image_tensor)
+        prediction =  outputs.squeeze().detach().numpy()
+        outputs = prediction
+        ind_max = np.where(outputs == max(outputs))[0][0]
+
+    elif framework == 'Keras':
+        image = Image.fromarray((canvas_result.image_data[:, :, 0]).astype(np.uint8))
+        image = image.resize((28, 28))
+        array = np.array(image)
+        array = np.reshape(array, (1, 28, 28, 1))
+        outputs = KerasModel.predict(array).squeeze()
+        ind_max = np.where(outputs == max(outputs))[0][0]
+    
     progress_bar = st.progress(0)
     for i in range(100):
         progress_bar.progress(i + 1)
@@ -129,17 +114,18 @@ if canvas_result.image_data is not None and result:
     st.markdown("<h3 style = 'text-align: center;'>Prediction : {}<h3>".format(
         ind_max), unsafe_allow_html=True)
     chart_data = pd.DataFrame(np_to_df(outputs), index=[
-                              '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'], columns=[
-                              '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
+                            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'], columns=[
+                            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
     st.bar_chart(chart_data)
 
+
 accuracies = {
-    'Pytorch': [97, 128, 20],
-    'Keras': [94, 128, 20]
+    'Pytorch': [98.7, 128, 20],
+    'Keras': [99.12, 128, 15]
      }
 
 st.markdown("---")
-st.subheader(f'Model: {framework} | Accuracy: {accuracies[framework][0]}%')
+st.subheader(f'Model: {framework} | Test-Accuracy: {accuracies[framework][0]}%')
 st.write(f'Batchsize: {accuracies[framework][1]}, Epochs: {accuracies[framework][2]}')
 if framework == 'Pytorch':
     st.code(
@@ -176,16 +162,18 @@ if framework == 'Pytorch':
 elif framework == 'Keras':
     st.code(
         '''
-        model = Sequential()
-        model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', input_shape=(28, 28, 1)))
-        model.add(MaxPooling2D((2, 2)))
-        model.add(Flatten())
-        model.add(Dense(100, activation='relu', kernel_initializer='he_uniform'))
-        model.add(Dense(10, activation='softmax'))
-        # compile model
-        opt = SGD(lr=0.01, momentum=0.9)
-        model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
-        return model
+        model = keras.Sequential(
+            [
+                keras.Input(shape=input_shape),
+                layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),
+                layers.MaxPooling2D(pool_size=(2, 2)),
+                layers.Conv2D(64, kernel_size=(3, 3), activation="relu"),
+                layers.MaxPooling2D(pool_size=(2, 2)),
+                layers.Flatten(),
+                layers.Dropout(0.5),
+                layers.Dense(num_classes, activation="softmax"),
+            ]
+        )
         '''
     )
 
