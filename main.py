@@ -35,7 +35,7 @@ class Netz(nn.Module):
         x = self.fc2(x)
         return x
 
-PytorchModel = torch.load('./model/Pytorch.pth')
+PytorchModel = torch.load('./model/mnist.pth')
 KerasModel = keras.models.load_model('./model/Keras.pth')
 
 st.set_page_config(
@@ -117,7 +117,6 @@ if canvas_result.image_data is not None and result:
                             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'], columns=[
                             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
     st.bar_chart(chart_data)
-
 
 accuracies = {
     'Pytorch': [98.7, 128, 20],
