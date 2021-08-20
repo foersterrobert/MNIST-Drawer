@@ -35,8 +35,21 @@ class Netz(nn.Module):
         x = self.fc2(x)
         return x
 
-PytorchModel = torch.load('./model/mnist.pth')
-KerasModel = keras.models.load_model('./model/Keras.pth')
+@st.cache
+def loadModels():
+    PytorchModel = torch.load('./model/mnist.pth')
+
+    for name, param in PytorchModel.named_parameters():
+        if name in ['fc.weight', 'fc.bias']:
+            param.requires_grad = True
+        else:
+            param.requires_grad = False
+
+    # for name, param in PytorchModel.named_parameters():
+    #     print(name, ':', param.requires_grad)
+    return PytorchModel
+        
+
 
 st.set_page_config(
     page_title="MNIST-Drawer",
@@ -50,6 +63,9 @@ hide_streamlit_style = """
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 st.title("MNIST-Drawer :pencil:")
+
+KerasModel = keras.models.load_model('./model/Keras.pth')
+PytorchModel = loadModels()
 
 with st.sidebar:
     stroke_width = st.slider("Stroke width: ", 1, 100, 25)

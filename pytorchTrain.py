@@ -18,12 +18,6 @@ train_data = torch.utils.data.DataLoader(datasets.MNIST('data', train=True, down
                         transforms.Normalize((0.1307,), (0.3081,))])),
                         batch_size=128, shuffle=True, **kwargs)
 
-test_data = torch.utils.data.DataLoader(datasets.MNIST('data', train=False, 
-                        transform=transforms.Compose([transforms.ToTensor(),
-                        transforms.Normalize((0.1307,), (0.3081,))])),
-                        batch_size=128, shuffle=True, **kwargs)
-
-
 class PytorchDrawer(nn.Module):
     def __init__(self):
         super(PytorchDrawer, self).__init__()
