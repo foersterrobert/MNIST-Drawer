@@ -4,12 +4,12 @@ from PIL import Image
 import numpy as np
 import pandas as pd
 import time
-from tensorflow.python.keras.backend import arange
 import torch
 import torch.nn as nn
 import torchvision.transforms as T
 import torch.nn.functional as F
-from tensorflow import keras
+import keras
+import pickle
 
 class Netz(nn.Module):
     def __init__(self):
@@ -66,10 +66,11 @@ st.title("MNIST-Drawer :pencil:")
 
 KerasModel = keras.models.load_model('./model/Keras.pth')
 PytorchModel = loadModels()
+ScikitModel = pickle.load(open('./model/scikit-learn.sav', 'rb'))
 
 with st.sidebar:
     stroke_width = st.slider("Stroke width: ", 1, 100, 25)
-    framework = st.selectbox("Model:", options=['Pytorch', 'Keras'])
+    framework = st.selectbox("Model:", options=['Pytorch', 'Keras', 'scikit-learn'])
     st.markdown("---")
     st.markdown(
             """
@@ -103,9 +104,10 @@ canvas_result = st_canvas(
 result = st.button("Predict")
 
 if canvas_result.image_data is not None and result:
+    image = Image.fromarray((canvas_result.image_data[:, :, 0]).astype(np.uint8))
+    image = image.resize((28, 28))
+    
     if framework == 'Pytorch':
-        image = Image.fromarray((canvas_result.image_data[:, :, 0]).astype(np.uint8))
-        image = image.resize((28, 28))
         transforms = T.ToTensor()
         tensor = transforms(image)
         image_tensor = tensor.unsqueeze_(0)
@@ -116,11 +118,16 @@ if canvas_result.image_data is not None and result:
         ind_max = np.where(outputs == max(outputs))[0][0]
 
     elif framework == 'Keras':
-        image = Image.fromarray((canvas_result.image_data[:, :, 0]).astype(np.uint8))
-        image = image.resize((28, 28))
         array = np.array(image)
         array = np.reshape(array, (1, 28, 28, 1))
         outputs = KerasModel.predict(array).squeeze()
+        ind_max = np.where(outputs == max(outputs))[0][0]
+
+    elif framework == 'scikit-learn':
+        array = np.array(image)
+        array = np.reshape(array, (1, 784))
+        array = (array - 33.39449141308309) / 78.6590439631829
+        outputs = ScikitModel.predict_proba(array).squeeze()
         ind_max = np.where(outputs == max(outputs))[0][0]
     
     progress_bar = st.progress(0)
@@ -136,13 +143,14 @@ if canvas_result.image_data is not None and result:
 
 accuracies = {
     'Pytorch': [98.7, 128, 20],
-    'Keras': [99.12, 128, 15]
+    'Keras': [99.12, 128, 15],
+    'scikit-learn': [96.48, 0, 0]
      }
 
 st.markdown("---")
 st.subheader(f'Model: {framework} | Test-Accuracy: {accuracies[framework][0]}%')
-st.write(f'Batchsize: {accuracies[framework][1]}, Epochs: {accuracies[framework][2]}')
 if framework == 'Pytorch':
+    st.write(f'Batchsize: {accuracies[framework][1]}, Epochs: {accuracies[framework][2]}')
     st.code(
         '''
         class Netz(nn.Module):
@@ -175,6 +183,7 @@ if framework == 'Pytorch':
     )
 
 elif framework == 'Keras':
+    st.write(f'Batchsize: {accuracies[framework][1]}, Epochs: {accuracies[framework][2]}')
     st.code(
         '''
         model = keras.Sequential(
@@ -189,6 +198,15 @@ elif framework == 'Keras':
                 layers.Dense(num_classes, activation="softmax"),
             ]
         )
+        '''
+    )
+
+elif framework == 'scikit-learn':
+    st.write('Support Vector Classification')
+    st.code(
+        '''
+        clf = svm.SVC(gamma=0.001, probability=True)
+        clf.fit(X_train, y_train)
         '''
     )
 
