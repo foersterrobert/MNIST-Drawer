@@ -47,9 +47,10 @@ def loadModels():
 
     # for name, param in PytorchModel.named_parameters():
     #     print(name, ':', param.requires_grad)
-    return PytorchModel
-        
 
+    ScikitModel = pickle.load(open('./model/scikit-learn.sav', 'rb'))
+    return PytorchModel, ScikitModel
+        
 
 st.set_page_config(
     page_title="MNIST-Drawer",
@@ -65,11 +66,10 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 st.title("MNIST-Drawer :pencil:")
 
 KerasModel = keras.models.load_model('./model/Keras.pth')
-PytorchModel = loadModels()
-ScikitModel = pickle.load(open('./model/scikit-learn.sav', 'rb'))
+PytorchModel, ScikitModel = loadModels()
 
 with st.sidebar:
-    stroke_width = st.slider("Stroke width: ", 1, 100, 25)
+    stroke_width = st.slider("Stroke width: ", 1, 50, 20)
     framework = st.selectbox("Model:", options=['Pytorch', 'Keras', 'scikit-learn'])
     st.markdown("---")
     st.markdown(
