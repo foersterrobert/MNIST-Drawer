@@ -144,7 +144,7 @@ if canvas_result.image_data is not None and result:
 accuracies = {
     'Pytorch': [98.7, 128, 20],
     'Keras': [99.12, 128, 15],
-    'scikit-learn': [96.48, 0, 0]
+    'scikit-learn': [96.78, 0, 0]
      }
 
 st.markdown("---")

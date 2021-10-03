@@ -1,8 +1,8 @@
-keras==2.6.0
-torch==1.9.1
-torchvision==0.10.1
-numpy==1.19.5
-pandas==1.3.3
+keras==2.5.0
+torch==1.9.0
+torchvision==0.10.0
+numpy==1.19.2
+pandas==1.1.3
 streamlit==0.89.0
 streamlit_drawable_canvas==0.8.0
-Pillow==8.3.2
+Pillow==8.0.1
