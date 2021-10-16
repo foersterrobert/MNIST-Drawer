@@ -38,19 +38,8 @@ class Netz(nn.Module):
 @st.cache
 def loadModels():
     PytorchModel = torch.load('./model/mnist.pth')
-
-    for name, param in PytorchModel.named_parameters():
-        if name in ['fc.weight', 'fc.bias']:
-            param.requires_grad = True
-        else:
-            param.requires_grad = False
-
-    # for name, param in PytorchModel.named_parameters():
-    #     print(name, ':', param.requires_grad)
-
     ScikitModel = pickle.load(open('./model/scikit-learn.sav', 'rb'))
-    return PytorchModel, ScikitModel
-        
+    return PytorchModel, ScikitModel  
 
 st.set_page_config(
     page_title="MNIST-Drawer",
@@ -112,10 +101,10 @@ if canvas_result.image_data is not None and result:
         tensor = transforms(image)
         image_tensor = tensor.unsqueeze_(0)
         image_tensor = (image_tensor - 0.1307) / 0.3081
-        outputs = PytorchModel(image_tensor)
-        prediction =  outputs.squeeze().detach().numpy()
-        outputs = prediction
-        ind_max = np.where(outputs == max(outputs))[0][0]
+        with torch.no_grad():
+            outputs = PytorchModel(image_tensor)
+            outputs = outputs.squeeze().detach().numpy()
+            ind_max = np.where(outputs == max(outputs))[0][0]
 
     elif framework == 'Keras':
         array = np.array(image)
