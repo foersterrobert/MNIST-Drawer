@@ -11,33 +11,27 @@ import torch.nn.functional as F
 import keras
 import pickle
 
-class Netz(nn.Module):
+class PytorchDrawer(nn.Module):
     def __init__(self):
-        super(Netz, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, 3, 1)
-        self.conv2 = nn.Conv2d(32, 64, 3, 1)
-        self.dropout1 = nn.Dropout(0.25)
-        self.dropout2 = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(9216, 128)
-        self.fc2 = nn.Linear(128, 10)
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 32, 5, 1, 1)
+        self.conv2 = nn.Conv2d(32, 64, 5, 1, 1)
+        self.conv3 = nn.Conv2d(64, 128, 5, 1, 1)
+        self.fc1 = nn.Linear(128, 64)
+        self.fc2 = nn.Linear(64, 10)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = F.relu(x)
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = F.max_pool2d(x, 2)
-        x = self.dropout1(x)
+        x = F.max_pool2d(F.relu(self.conv1(x)), 2)
+        x = F.max_pool2d(F.relu(self.conv2(x)), 2)
+        x = F.max_pool2d(F.relu(self.conv3(x)), 2)
         x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.dropout2(x)
+        x = F.relu(self.fc1(x))
         x = self.fc2(x)
-        return x
+        return F.log_softmax(x, dim=1)
 
 @st.cache
 def loadModels():
-    PytorchModel = torch.load('./model/mnist.pth')
+    PytorchModel = torch.load('./model/Pytorch.pth')
     ScikitModel = pickle.load(open('./model/scikit-learn.sav', 'rb'))
     return PytorchModel, ScikitModel  
 
@@ -102,8 +96,8 @@ if canvas_result.image_data is not None and result:
         image_tensor = tensor.unsqueeze_(0)
         image_tensor = (image_tensor - 0.1307) / 0.3081
         with torch.no_grad():
-            outputs = PytorchModel(image_tensor)
-            outputs = outputs.squeeze().detach().numpy()
+            outputs = torch.exp(PytorchModel(image_tensor))
+            outputs = outputs.squeeze().detach().numpy() ** 0.1
             ind_max = np.where(outputs == max(outputs))[0][0]
 
     elif framework == 'Keras':
@@ -131,7 +125,7 @@ if canvas_result.image_data is not None and result:
     st.bar_chart(chart_data)
 
 accuracies = {
-    'Pytorch': [98.7, 128, 20],
+    'Pytorch': [98.8, 64, 20],
     'Keras': [99.12, 128, 15],
     'scikit-learn': [96.78, 0, 0]
      }
@@ -142,32 +136,23 @@ if framework == 'Pytorch':
     st.write(f'Batchsize: {accuracies[framework][1]}, Epochs: {accuracies[framework][2]}')
     st.code(
         '''
-        class Netz(nn.Module):
-            def __init__(self):
-                super(Netz, self).__init__()
-                self.conv1 = nn.Conv2d(1, 32, 3, 1)
-                self.conv2 = nn.Conv2d(32, 64, 3, 1)
-                self.dropout1 = nn.Dropout(0.25)
-                self.dropout2 = nn.Dropout(0.5)
-                self.fc1 = nn.Linear(9216, 128)
-                self.fc2 = nn.Linear(128, 10)
+class PytorchDrawer(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 32, 5, 1, 1)
+        self.conv2 = nn.Conv2d(32, 64, 5, 1, 1)
+        self.conv3 = nn.Conv2d(64, 128, 5, 1, 1)
+        self.fc1 = nn.Linear(128, 64)
+        self.fc2 = nn.Linear(64, 10)
 
-            def forward(self, x):
-                x = self.conv1(x)
-                x = F.relu(x)
-                x = self.conv2(x)
-                x = F.relu(x)
-                x = F.max_pool2d(x, 2)
-                x = self.dropout1(x)
-                x = torch.flatten(x, 1)
-                x = self.fc1(x)
-                x = F.relu(x)
-                x = self.dropout2(x)
-                x = self.fc2(x)
-                output = F.log_softmax(x, dim=1)
-                return output
-
-        optimizer = optim.SGD(model.parameters(), lr=0.1, momentum=0.8)
+    def forward(self, x):
+        x = F.max_pool2d(F.relu(self.conv1(x)), 2)
+        x = F.max_pool2d(F.relu(self.conv2(x)), 2)
+        x = F.max_pool2d(F.relu(self.conv3(x)), 2)
+        x = torch.flatten(x, 1)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return F.log_softmax(x, dim=1)
         '''
     )
 
@@ -175,18 +160,18 @@ elif framework == 'Keras':
     st.write(f'Batchsize: {accuracies[framework][1]}, Epochs: {accuracies[framework][2]}')
     st.code(
         '''
-        model = keras.Sequential(
-            [
-                keras.Input(shape=input_shape),
-                layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),
-                layers.MaxPooling2D(pool_size=(2, 2)),
-                layers.Conv2D(64, kernel_size=(3, 3), activation="relu"),
-                layers.MaxPooling2D(pool_size=(2, 2)),
-                layers.Flatten(),
-                layers.Dropout(0.5),
-                layers.Dense(num_classes, activation="softmax"),
-            ]
-        )
+model = keras.Sequential(
+    [
+        keras.Input(shape=input_shape),
+        layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),
+        layers.MaxPooling2D(pool_size=(2, 2)),
+        layers.Conv2D(64, kernel_size=(3, 3), activation="relu"),
+        layers.MaxPooling2D(pool_size=(2, 2)),
+        layers.Flatten(),
+        layers.Dropout(0.5),
+        layers.Dense(num_classes, activation="softmax"),
+    ]
+)
         '''
     )
 
@@ -194,8 +179,8 @@ elif framework == 'scikit-learn':
     st.write('Support Vector Classification')
     st.code(
         '''
-        clf = svm.SVC(gamma=0.001, probability=True)
-        clf.fit(X_train, y_train)
+clf = svm.SVC(gamma=0.001, probability=True)
+clf.fit(X_train, y_train)
         '''
     )
 
