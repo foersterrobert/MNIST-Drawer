@@ -6,7 +6,7 @@ import pandas as pd
 import time
 import torch
 import torch.nn as nn
-import torchvision.transforms as T
+from torchvision import transforms
 import torch.nn.functional as F
 import keras
 import pickle
@@ -91,10 +91,10 @@ if canvas_result.image_data is not None and result:
     image = image.resize((28, 28))
     
     if framework == 'Pytorch':
-        transforms = T.ToTensor()
-        tensor = transforms(image)
+        DataTransform = transforms.Compose([transforms.ToTensor(),
+                        transforms.Normalize((0.1307,), (0.3081,))])
+        tensor = DataTransform(image)
         image_tensor = tensor.unsqueeze_(0)
-        image_tensor = (image_tensor - 0.1307) / 0.3081
         with torch.no_grad():
             outputs = torch.exp(PytorchModel(image_tensor))
             outputs = outputs.squeeze().detach().numpy() ** 0.1
