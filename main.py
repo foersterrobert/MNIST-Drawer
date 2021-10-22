@@ -97,7 +97,7 @@ if canvas_result.image_data is not None and result:
         image_tensor = tensor.unsqueeze_(0)
         with torch.no_grad():
             outputs = torch.exp(PytorchModel(image_tensor))
-            outputs = outputs.squeeze().detach().numpy() ** 0.1
+            outputs = outputs.squeeze().detach().numpy() ** 0.2
             ind_max = np.where(outputs == max(outputs))[0][0]
 
     elif framework == 'Keras':
@@ -109,7 +109,7 @@ if canvas_result.image_data is not None and result:
     elif framework == 'scikit-learn':
         array = np.array(image)
         array = np.reshape(array, (1, 784))
-        array = (array - 33.39449141308309) / 78.6590439631829
+        array = (array - 33.385964741253645) / 78.65437362689433
         outputs = ScikitModel.predict_proba(array).squeeze()
         ind_max = np.where(outputs == max(outputs))[0][0]
     
