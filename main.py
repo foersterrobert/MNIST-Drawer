@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 from torchvision import transforms
 import torch.nn.functional as F
-import keras
+from tensorflow import keras
 import pickle
 
 class PytorchDrawer(nn.Module):
