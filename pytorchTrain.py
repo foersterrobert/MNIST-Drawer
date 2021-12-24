@@ -5,11 +5,6 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 import os
 
-train_data = torch.utils.data.DataLoader(datasets.MNIST('data', train=True, download=True, 
-                        transform=transforms.Compose([transforms.ToTensor(),
-                        transforms.Normalize((0.1307,), (0.3081,))])),
-                        batch_size=64, shuffle=True)
-
 class PytorchDrawer(nn.Module):
     def __init__(self):
         super().__init__()
@@ -28,9 +23,6 @@ class PytorchDrawer(nn.Module):
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
 
-model = PytorchDrawer()
-optimizer = optim.Adam(model.parameters())
-
 def train(epoch):
     model.train()
     for batch_id, (data, target) in enumerate(train_data):
@@ -43,15 +35,24 @@ def train(epoch):
             epoch, batch_id * len(data), len(train_data.dataset),
                     100. * batch_id / len(train_data), loss.data))
 
-for epoch in range(1, 20):
-    train(epoch)
+if __name__ == '__main__':
+    train_data = torch.utils.data.DataLoader(datasets.MNIST('data', train=True, download=True, 
+                        transform=transforms.Compose([transforms.ToTensor(),
+                        transforms.Normalize((0.1307,), (0.3081,))])),
+                        batch_size=64, shuffle=True)
 
-save = input('save? y ')
-if save == 'y':
-    model.eval()
-    model_folder_path = './model'
-    file_name='Pytorch.pth'
-    if not os.path.exists(model_folder_path):
-        os.makedirs(model_folder_path)
-    file_name = os.path.join(model_folder_path, file_name)
-    torch.save(model, file_name)
+    model = PytorchDrawer()
+    optimizer = optim.Adam(model.parameters())
+    
+    for epoch in range(1, 20):
+        train(epoch)
+
+    save = input('save? y ')
+    if save == 'y':
+        model.eval()
+        model_folder_path = './model'
+        file_name='Pytorch.pth'
+        if not os.path.exists(model_folder_path):
+            os.makedirs(model_folder_path)
+        file_name = os.path.join(model_folder_path, file_name)
+        torch.save(model, file_name)
