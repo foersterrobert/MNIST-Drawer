@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import time
 import torch
-import torch.nn as nn
 from torchvision import transforms
 from tensorflow import keras
 import pickle
@@ -34,17 +33,24 @@ hide_streamlit_style = """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 st.title("MNIST-Drawer & Generator :pencil:")
 
+@st.experimental_singleton
+def load_models():
+    PytorchModel = torch.load('./model/Pytorch.pth')
+    PytorchModel.eval()
+    ScikitModel = pickle.load(open('./model/scikit-learn.sav', 'rb'))
+    PytorchGenerator = Generator(100, 1, 64)
+    PytorchGenerator.load_state_dict(torch.load('./model/PytorchGAN.pth',
+                        map_location=torch.device('cpu')))
+    PytorchGenerator.eval()
+    return PytorchModel, ScikitModel, PytorchGenerator
+
 KerasModel = keras.models.load_model('./model/Keras.pth')
-PytorchModel = torch.load('./model/Pytorch.pth')
-ScikitModel = pickle.load(open('./model/scikit-learn.sav', 'rb'))
-netG = Generator(100, 1, 64)
-netG.load_state_dict(torch.load('./model/PytorchGAN.pth',
-                     map_location=torch.device('cpu')))
+PytorchModel, ScikitModel, PytorchGenerator = load_models()
 
 with st.sidebar:
     page = st.radio("Page: ", ("Draw", "Generate"))
     framework = st.selectbox(
-        "Model:", options=['Pytorch', 'Keras', 'scikit-learn'])
+        "Prediction-Model:", options=['Pytorch', 'Keras', 'scikit-learn'])
     if page == 'Draw':
         stroke_width = st.slider("Stroke width: ", 1, 50, 20)
     st.markdown("---")
@@ -75,7 +81,7 @@ else:
         st.session_state['noise'] = sample_noise
     if generate:
         st.session_state['noise'] = torch.randn(1, 100, 1, 1)
-    fake = netG(st.session_state.noise)
+    fake = PytorchGenerator(st.session_state.noise)
     fake = fake.reshape(64, 64, 1).detach().numpy().squeeze()
     fake = (fake - np.min(fake))/np.ptp(fake)
     st.image(fake, width=280)
@@ -84,8 +90,7 @@ result = st.button(f"Predict with {framework}")
 
 if result:
     if page == "Draw":
-        if canvas.image_data != None:
-            image = Image.fromarray((canvas.image_data[:, :, 0]).astype(np.uint8))
+        image = Image.fromarray((canvas.image_data[:, :, 0]).astype(np.uint8))
     else:
         image = Image.fromarray((fake*255).astype(np.uint8))
     image = image.resize((28, 28))
@@ -123,6 +128,46 @@ if result:
                               index=['0', '1', '2', '3', '4','5', '6', '7', '8', '9'],
                               columns=['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
     st.bar_chart(chart_data)
+
+if page == "Generate":
+    st.markdown("---")
+    st.subheader('DCGAN Generator Architecture')
+    st.code(
+        """
+class Generator(nn.Module):
+    def __init__(self, channels_noise, channels_img, features_g):
+        super(Generator, self).__init__()
+        self.gen = nn.Sequential(
+            # Input: N x channels_noise x 1 x 1
+            self._block(channels_noise, features_g * 16, 4, 1, 0),  # img: 4x4
+            self._block(features_g * 16, features_g * 8, 4, 2, 1),  # img: 8x8
+            self._block(features_g * 8, features_g * 4, 4, 2, 1),  # img: 16x16
+            self._block(features_g * 4, features_g * 2, 4, 2, 1),  # img: 32x32
+            nn.ConvTranspose2d(
+                features_g * 2, channels_img, kernel_size=4, stride=2, padding=1
+            ),
+            # Output: N x channels_img x 64 x 64
+            nn.Tanh(),
+        )
+
+    def _block(self, in_channels, out_channels, kernel_size, stride, padding):
+        return nn.Sequential(
+            nn.ConvTranspose2d(
+                in_channels,
+                out_channels,
+                kernel_size,
+                stride,
+                padding,
+                bias=False,
+            ),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
+        )
+
+    def forward(self, x):
+        return self.gen(x)
+        """
+    )
 
 accuracies = {
     'Pytorch': [98.8, 64, 20],

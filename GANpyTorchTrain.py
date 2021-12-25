@@ -247,7 +247,7 @@ class Discriminator(nn.Module):
 class Generator(nn.Module):
     def __init__(self, channels_noise, channels_img, features_g):
         super(Generator, self).__init__()
-        self.net = nn.Sequential(
+        self.gen = nn.Sequential(
             # Input: N x channels_noise x 1 x 1
             self._block(channels_noise, features_g * 16, 4, 1, 0),  # img: 4x4
             self._block(features_g * 16, features_g * 8, 4, 2, 1),  # img: 8x8
@@ -275,7 +275,7 @@ class Generator(nn.Module):
         )
 
     def forward(self, x):
-        return self.net(x)
+        return self.gen(x)
 
 def initialize_weights(model):
     # Initializes weights according to the DCGAN paper
