@@ -9,7 +9,7 @@ from torchvision import transforms
 from tensorflow import keras
 import pickle
 from pytorchTrain import PytorchDrawer
-from GANpyTorchTrain import sample_noise, Generator
+from GANpyTorchTrain import Generator
 
 def np_to_df(outputs):
     length = outputs.shape[0]
@@ -38,8 +38,8 @@ def load_models():
     PytorchModel = torch.load('./model/Pytorch.pth')
     PytorchModel.eval()
     ScikitModel = pickle.load(open('./model/scikit-learn.sav', 'rb'))
-    PytorchGenerator = Generator(100, 1, 64)
-    PytorchGenerator.load_state_dict(torch.load('./model/PytorchGAN.pth',
+    PytorchGenerator = Generator(100, 1, 28)
+    PytorchGenerator.load_state_dict(torch.load('./model/PytorchDCGAN.pth',
                         map_location=torch.device('cpu')))
     PytorchGenerator.eval()
     return PytorchModel, ScikitModel, PytorchGenerator
@@ -77,12 +77,10 @@ if page == "Draw":
 
 else:
     generate = st.button("Generate with DCGAN")
-    if 'noise' not in st.session_state:
-        st.session_state['noise'] = sample_noise
-    if generate:
+    if 'noise' not in st.session_state or generate:
         st.session_state['noise'] = torch.randn(1, 100, 1, 1)
     fake = PytorchGenerator(st.session_state.noise)
-    fake = fake.reshape(64, 64, 1).detach().numpy().squeeze()
+    fake = fake.reshape(28, 28, 1).detach().numpy().squeeze()
     fake = (fake - np.min(fake))/np.ptp(fake)
     st.image(fake, width=280)
 
@@ -138,15 +136,15 @@ class Generator(nn.Module):
     def __init__(self, channels_noise, channels_img, features_g):
         super(Generator, self).__init__()
         self.gen = nn.Sequential(
-            # Input: N x channels_noise x 1 x 1
-            self._block(channels_noise, features_g * 16, 4, 1, 0),  # img: 4x4
-            self._block(features_g * 16, features_g * 8, 4, 2, 1),  # img: 8x8
-            self._block(features_g * 8, features_g * 4, 4, 2, 1),  # img: 16x16
-            self._block(features_g * 4, features_g * 2, 4, 2, 1),  # img: 32x32
+            # Input: N x channels_noise | 1 x 100
+            self._block(100, features_g * 32, 7, 1, 0),  # img: 7x7x896
+            self._block(features_g * 32, features_g * 16, 4, 2, 1),  # img: 14x14x448
+            self._block(features_g * 16, features_g * 8, 3, 1, 1),  # img: 14x14x224
+            self._block(features_g * 8, features_g * 4, 3, 1, 1),  # img: 14x14x112
             nn.ConvTranspose2d(
-                features_g * 2, channels_img, kernel_size=4, stride=2, padding=1
+                features_g * 4, 1, kernel_size=4, stride=2, padding=1
             ),
-            # Output: N x channels_img x 64 x 64
+            # Output: N x channels_img | 28x28x1
             nn.Tanh(),
         )
 
