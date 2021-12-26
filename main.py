@@ -9,7 +9,7 @@ from torchvision import transforms
 from tensorflow import keras
 import pickle
 from pytorchTrain import PytorchDrawer
-from GANpyTorchTrain import Generator
+from GANpyTorch import Generator
 
 def np_to_df(outputs):
     length = outputs.shape[0]
