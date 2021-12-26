@@ -17,7 +17,7 @@
 
 ### Generator loss
 
-![GEN](assets/generatorloss.jpg)
+![GEN](assets/generatorLoss.jpg)
 
 #### The loss function of the discriminator basically is the latter part of the first equation we saw earlier. But now it should be minimized.
 
