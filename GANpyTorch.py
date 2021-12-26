@@ -11,17 +11,16 @@ class Discriminator(nn.Module):
     def __init__(self, channels_img, features_d):
         super(Discriminator, self).__init__()
         self.disc = nn.Sequential(
-            # input: N x channels_img x 64 x 64
+            # input: N x channels_img | N = W x H | 28 x 28 x 1
             nn.Conv2d(
-                channels_img, features_d, kernel_size=4, stride=2, padding=1
-            ),
+                channels_img, features_d * 2, kernel_size=4, stride=2, padding=1
+            ), # 14x14
             nn.LeakyReLU(0.2),
-            # _block(in_channels, out_channels, kernel_size, stride, padding)
-            self._block(features_d, features_d * 2, 4, 2, 1),
-            self._block(features_d * 2, features_d * 4, 4, 2, 1),
-            self._block(features_d * 4, features_d * 8, 4, 2, 1),
-            # After all _block img output is 4x4 (Conv2d below makes into 1x1)
-            nn.Conv2d(features_d * 8, 1, kernel_size=4, stride=2, padding=0),
+            self._block(features_d * 2, features_d * 4, 3, 1, 1), # 14x14
+            self._block(features_d * 4, features_d * 8, 3, 1, 1), # 14x14
+            self._block(features_d * 8, features_d * 16, 4, 2, 1), # 7x7
+            # After all _block img output is 7x7 (Conv2d below makes into 1x1)
+            nn.Conv2d(features_d * 16, 1, kernel_size=7, stride=2, padding=0),
             nn.Sigmoid(),
         )
 
@@ -84,22 +83,22 @@ def initialize_weights(model):
 if __name__ == "__main__":
     LEARNING_RATE = 2e-4
     BATCH_SIZE = 128
-    IMAGE_SIZE = 64
+    IMAGE_SIZE = 28
     CHANNELS_IMG = 1
-    NOISE_DIM = 100
-    NUM_EPOCHS = 10
+    CHANNELS_NOISE = 100
+    NUM_EPOCHS = 20
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(device)
 
-    train_data = torch.utils.data.DataLoader(datasets.MNIST('data', train=True, download=True, 
+    train_data = DataLoader(datasets.MNIST('data', train=True, download=True, 
                 transform=transforms.Compose([
                         transforms.Resize(IMAGE_SIZE), 
                         transforms.ToTensor(),
                         transforms.Normalize((0.5,), (0.5,))])
                 ),
                 batch_size=BATCH_SIZE, shuffle=True)
-    gen = Generator(NOISE_DIM, CHANNELS_IMG, IMAGE_SIZE).to(device)
+    gen = Generator(CHANNELS_NOISE, CHANNELS_IMG, IMAGE_SIZE).to(device)
     disc = Discriminator(CHANNELS_IMG, IMAGE_SIZE).to(device)
     initialize_weights(gen)
     initialize_weights(disc)
@@ -108,22 +107,25 @@ if __name__ == "__main__":
     opt_disc = optim.Adam(disc.parameters(), lr=LEARNING_RATE, betas=(0.5, 0.999))
     criterion = nn.BCELoss()
 
-    fixed_noise = torch.randn(32, NOISE_DIM, 1, 1).to(device) # 32 digits for Tensorboard
+    fixed_noise = torch.randn(32, CHANNELS_NOISE, 1, 1).to(device) # 32 digits for Tensorboard
     writer_real = SummaryWriter(f"logs/real")
     writer_fake = SummaryWriter(f"logs/fake")
     step = 0
     for epoch in range(NUM_EPOCHS):
+        gen_loss = 0.0
+        disc_loss = 0.0
         for batch_idx, (real, _) in enumerate(train_data):
             real = real.to(device)
 
             ### Train Discriminator: max log(D(x)) + log(1 - D(G(z)))
-            noise = torch.randn(BATCH_SIZE, NOISE_DIM, 1, 1).to(device)
+            noise = torch.randn(BATCH_SIZE, CHANNELS_NOISE, 1, 1).to(device)
             fake = gen(noise)
             disc_real = disc(real).reshape(-1)
             lossD_real = criterion(disc_real, torch.ones_like(disc_real))
             disc_fake = disc(fake.detach()).reshape(-1)
             lossD_fake = criterion(disc_fake, torch.zeros_like(disc_fake))
             lossD = (lossD_real + lossD_fake) / 2
+            disc_loss += lossD
             disc.zero_grad()
             lossD.backward()
             opt_disc.step()
@@ -133,6 +135,7 @@ if __name__ == "__main__":
             # saturating gradients
             output = disc(fake).reshape(-1)
             lossG = criterion(output, torch.ones_like(output))
+            gen_loss += lossG
             gen.zero_grad()
             lossG.backward()
             opt_gen.step()
@@ -153,10 +156,19 @@ if __name__ == "__main__":
                         fake[:32], normalize=True
                     )
 
+                    writer_real.add_scalar('Loss Discriminator',
+                                disc_loss / 100,
+                                epoch * len(train_data) + batch_idx)
                     writer_real.add_image("Real", img_grid_real, global_step=step)
+                    
+                    writer_fake.add_scalar('Loss Generator',
+                                gen_loss / 100,
+                                epoch * len(train_data) + batch_idx)
                     writer_fake.add_image("Fake", img_grid_fake, global_step=step)
 
                 step += 1
+                gen_loss = 0
+                disc_loss = 0
 
 
     torch.save(gen.state_dict(), "model/PytorchGAN.pth")
