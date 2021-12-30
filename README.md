@@ -17,11 +17,7 @@
 
 ### Generator loss
 
-<<<<<<< HEAD
 ![GEN](GANs/assets/generatorloss.jpg)
-=======
-![GEN](assets/generatorLoss.jpg)
->>>>>>> 65a3051637e845da3aaccc7708d45a9a5e7d12b6
 
 #### The loss function of the discriminator basically is the latter part of the first equation we saw earlier. But now it should be minimized.
 
