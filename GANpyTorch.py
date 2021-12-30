@@ -9,17 +9,17 @@ from torch.utils.tensorboard import SummaryWriter
 
 class Discriminator(nn.Module):
     def __init__(self, channels_img, features_d):
-        super(Discriminator, self).__init__()
+        super().__init__()
         self.disc = nn.Sequential(
             # input: N x channels_img | N = W x H | 28 x 28 x 1
             nn.Conv2d(
                 channels_img, features_d * 2, kernel_size=4, stride=2, padding=1
-            ), # 14x14
+            ), # 14x14x56
             nn.LeakyReLU(0.2),
-            self._block(features_d * 2, features_d * 4, 3, 1, 1), # 14x14
-            self._block(features_d * 4, features_d * 8, 3, 1, 1), # 14x14
-            self._block(features_d * 8, features_d * 16, 4, 2, 1), # 7x7
-            # After all _block img output is 7x7 (Conv2d below makes into 1x1)
+            self._block(features_d * 2, features_d * 4, 3, 1, 1), # 14x14x112
+            self._block(features_d * 4, features_d * 8, 3, 1, 1), # 14x14x224
+            self._block(features_d * 8, features_d * 16, 4, 2, 1), # 7x7x448
+            # After all _block img output is 7x7x448 (Conv2d below makes into 1x1x1 -> 1)
             nn.Conv2d(features_d * 16, 1, kernel_size=7, stride=2, padding=0),
             nn.Sigmoid(),
         )
@@ -43,15 +43,15 @@ class Discriminator(nn.Module):
 
 class Generator(nn.Module):
     def __init__(self, channels_noise, channels_img, features_g):
-        super(Generator, self).__init__()
+        super().__init__()
         self.gen = nn.Sequential(
             # Input: N x channels_noise | 1 x 100
-            self._block(100, features_g * 32, 7, 1, 0),  # img: 7x7x896
+            self._block(channels_noise, features_g * 32, 7, 1, 0),  # img: 7x7x896
             self._block(features_g * 32, features_g * 16, 4, 2, 1),  # img: 14x14x448
             self._block(features_g * 16, features_g * 8, 3, 1, 1),  # img: 14x14x224
             self._block(features_g * 8, features_g * 4, 3, 1, 1),  # img: 14x14x112
             nn.ConvTranspose2d(
-                features_g * 4, 1, kernel_size=4, stride=2, padding=1
+                features_g * 4, channels_img, kernel_size=4, stride=2, padding=1
             ),
             # Output: N x channels_img | 28x28x1
             nn.Tanh(),
@@ -75,7 +75,6 @@ class Generator(nn.Module):
         return self.gen(x)
 
 def initialize_weights(model):
-    # Initializes weights according to the DCGAN paper
     for m in model.modules():
         if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.BatchNorm2d)):
             nn.init.normal_(m.weight.data, 0.0, 0.02)
