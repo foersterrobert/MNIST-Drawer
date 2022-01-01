@@ -9,7 +9,7 @@ from torchvision import transforms
 from tensorflow import keras
 import pickle
 from pytorchTrain import PytorchDrawer
-from GANpyTorch import Generator
+from GANs import DCGAN, CGAN
 
 def np_to_df(outputs):
     length = outputs.shape[0]
@@ -38,14 +38,18 @@ def load_models():
     PytorchModel = torch.load('./model/Pytorch.pth')
     PytorchModel.eval()
     ScikitModel = pickle.load(open('./model/scikit-learn.sav', 'rb'))
-    PytorchGenerator = Generator(100, 1, 28)
-    PytorchGenerator.load_state_dict(torch.load('./model/PytorchDCGAN.pth',
+    dcgan = DCGAN(100, 1, 28)
+    dcgan.load_state_dict(torch.load('./model/DCGAN.pth',
                         map_location=torch.device('cpu')))
-    PytorchGenerator.eval()
-    return PytorchModel, ScikitModel, PytorchGenerator
+    dcgan.eval()
+    cgan = CGAN(100, 1, 28, 10, 100)
+    cgan.load_state_dict(torch.load('./model/CGAN.pth',
+                        map_location=torch.device('cpu')))
+    cgan.eval()
+    return PytorchModel, ScikitModel, dcgan, cgan
 
 KerasModel = keras.models.load_model('./model/Keras.pth')
-PytorchModel, ScikitModel, PytorchGenerator = load_models()
+PytorchModel, ScikitModel, dcgan, cgan = load_models()
 
 with st.sidebar:
     page = st.radio("Page: ", ("Draw", "Generate"))
@@ -53,6 +57,8 @@ with st.sidebar:
         "Prediction-Model:", options=['Pytorch', 'Keras', 'scikit-learn'])
     if page == 'Draw':
         stroke_width = st.slider("Stroke width: ", 1, 50, 20)
+    else:
+        number = st.slider("CGAN Number: ", 0, 9, 0)
     st.markdown("---")
     st.markdown(
         """
@@ -77,12 +83,17 @@ if page == "Draw":
 
 else:
     generate = st.button("Generate with DCGAN")
-    if 'noise' not in st.session_state or generate:
-        st.session_state['noise'] = torch.randn(1, 100, 1, 1)
-    fake = PytorchGenerator(st.session_state.noise)
-    fake = fake.reshape(28, 28, 1).detach().numpy().squeeze()
-    fake = (fake - np.min(fake))/np.ptp(fake)
-    st.image(fake, width=280)
+    conGenerate = st.button(f"Generate {number} with CGAN")
+    if 'fake' not in st.session_state or generate or conGenerate:
+        noise = torch.randn(1, 100, 1, 1)
+        if conGenerate:
+            fake = cgan(noise, torch.tensor([number]))
+        else:
+            fake = dcgan(noise)
+        fake = fake.reshape(28, 28, 1).detach().numpy().squeeze()
+        fake = (fake - np.min(fake))/np.ptp(fake)
+        st.session_state['fake'] = fake
+    st.image(st.session_state['fake'], width=280)
 
 result = st.button(f"Predict with {framework}")
 
