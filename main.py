@@ -101,7 +101,7 @@ if result:
     if page == "Draw":
         image = Image.fromarray((canvas.image_data[:, :, 0]).astype(np.uint8))
     else:
-        image = Image.fromarray((fake*255).astype(np.uint8))
+        image = Image.fromarray((st.session_state['fake']*255).astype(np.uint8))
     image = image.resize((28, 28))
 
     if framework == 'Pytorch':
