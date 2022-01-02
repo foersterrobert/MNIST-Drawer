@@ -8,8 +8,7 @@ import torch
 from torchvision import transforms
 from tensorflow import keras
 import pickle
-from pytorchTrain import PytorchDrawer
-from GANs import DCGAN, CGAN
+from PytorchModels import PytorchDrawer, DCGAN, CGAN
 
 def np_to_df(outputs):
     length = outputs.shape[0]
@@ -35,16 +34,19 @@ st.title("MNIST-Drawer & Generator :pencil:")
 
 @st.experimental_singleton
 def load_models():
-    PytorchModel = torch.load('./model/Pytorch.pth')
+    device = torch.device('cpu')
+    PytorchModel = PytorchDrawer()
+    PytorchModel.load_state_dict(torch.load('./model/Pytorch.pth',
+                        map_location=device))
     PytorchModel.eval()
     ScikitModel = pickle.load(open('./model/scikit-learn.sav', 'rb'))
     dcgan = DCGAN(100, 1, 28)
     dcgan.load_state_dict(torch.load('./model/DCGAN.pth',
-                        map_location=torch.device('cpu')))
+                        map_location=device))
     dcgan.eval()
     cgan = CGAN(100, 1, 28, 10, 100)
     cgan.load_state_dict(torch.load('./model/CGAN.pth',
-                        map_location=torch.device('cpu')))
+                        map_location=device))
     cgan.eval()
     return PytorchModel, ScikitModel, dcgan, cgan
 
@@ -58,7 +60,10 @@ with st.sidebar:
     if page == 'Draw':
         stroke_width = st.slider("Stroke width: ", 1, 50, 20)
     else:
-        number = st.slider("CGAN Number: ", 0, 9, 0)
+        genModel = st.selectbox(
+            "Generator-Model:", options=['DCGAN', 'CGAN'])
+        if genModel == 'CGAN':
+            number = st.slider("CGAN Number: ", 0, 9, 0)
     st.markdown("---")
     st.markdown(
         """
@@ -82,11 +87,13 @@ if page == "Draw":
     )
 
 else:
-    generate = st.button("Generate with DCGAN")
-    conGenerate = st.button(f"Generate {number} with CGAN")
-    if 'fake' not in st.session_state or generate or conGenerate:
+    if genModel == 'CGAN':
+        generate = st.button(f"Generate {number} using {genModel}")
+    else:
+        generate = st.button(f"Generate digit using {genModel}")
+    if 'fake' not in st.session_state or generate:
         noise = torch.randn(1, 100, 1, 1)
-        if conGenerate:
+        if genModel == 'CGAN':
             fake = cgan(noise, torch.tensor([number]))
         else:
             fake = dcgan(noise)
@@ -178,43 +185,61 @@ class Generator(nn.Module):
         """
     )
 
-accuracies = {
-    'Pytorch': [98.8, 64, 20],
-    'Keras': [99.12, 128, 15],
-    'scikit-learn': [96.78, 0, 0]
-}
-
 st.markdown("---")
-st.subheader(
-    f'Model: {framework} | Test-Accuracy: {accuracies[framework][0]}%')
 if framework == 'Pytorch':
+    st.subheader(
+        f'Model: {framework} | Test-Accuracy: 99.2% in Kaggle')
     st.write(
-        f'Batchsize: {accuracies[framework][1]}, Epochs: {accuracies[framework][2]}')
+        'Batchsize: 64, Epochs: 30, Learning-Rate: 0.001, Optimizer: Adam')
     st.code(
         '''
 class PytorchDrawer(nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = nn.Conv2d(1, 32, 5, 1, 1)
-        self.conv2 = nn.Conv2d(32, 64, 5, 1, 1)
-        self.conv3 = nn.Conv2d(64, 128, 5, 1, 1)
-        self.fc1 = nn.Linear(128, 64)
-        self.fc2 = nn.Linear(64, 10)
+        # 1x28x28
+        self.cnn = nn.Sequential(
+            nn.Conv2d(1, 32, 5, 1, 2), # 32x28x28
+            nn.ReLU(),
+            nn.Conv2d(32, 32, 5, 1, 2, bias=False), # 32x28x28
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2), # 32x14x14
+            nn.Conv2d(32, 64, 3, 1), # 64x12x12
+            nn.ReLU(),
+            nn.Conv2d(64, 64, 3, 1, bias=False), # 64x10x10
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2), # 64x5x5
+            Flatten(),
+            nn.Linear(64*5*5, 256, bias=False), # 256
+            nn.BatchNorm1d(256),
+            nn.ReLU(),
+            nn.Linear(256, 128, bias=False), # 128
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Linear(128, 84, bias=False), # 84
+            nn.BatchNorm1d(84),
+            nn.ReLU(),
+            nn.Dropout(0.25),
+            nn.Linear(84, 10), # 10
+            nn.LogSoftmax(dim=1)
+        )
 
     def forward(self, x):
-        x = F.max_pool2d(F.relu(self.conv1(x)), 2)
-        x = F.max_pool2d(F.relu(self.conv2(x)), 2)
-        x = F.max_pool2d(F.relu(self.conv3(x)), 2)
-        x = torch.flatten(x, 1)
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return F.log_softmax(x, dim=1)
+        x = self.cnn(x)
+        return x
+
+class Flatten(nn.Module):
+    def forward(self, input):
+        return input.view(input.size(0), -1)
         '''
     )
 
 elif framework == 'Keras':
+    st.subheader(
+        f'Model: {framework} | Test-Accuracy: 99.12%')
     st.write(
-        f'Batchsize: {accuracies[framework][1]}, Epochs: {accuracies[framework][2]}')
+        'Batchsize: 128, Epochs: 15')
     st.code(
         '''
 model = keras.Sequential(
@@ -233,6 +258,8 @@ model = keras.Sequential(
     )
 
 elif framework == 'scikit-learn':
+    st.subheader(
+        f'Model: {framework} | Test-Accuracy: 96.78%')
     st.write('Support Vector Classification')
     st.code(
         '''
