@@ -36,21 +36,21 @@ st.title("MNIST-Drawer & Generator :pencil:")
 def load_models():
     device = torch.device('cpu')
     PytorchModel = PytorchDrawer()
-    PytorchModel.load_state_dict(torch.load('./model/Pytorch.pth',
+    PytorchModel.load_state_dict(torch.load('./models/Pytorch.pth',
                         map_location=device))
     PytorchModel.eval()
-    ScikitModel = pickle.load(open('./model/scikit-learn.sav', 'rb'))
+    ScikitModel = pickle.load(open('./models/scikit-learn.sav', 'rb'))
     dcgan = DCGAN(100, 1, 28)
-    dcgan.load_state_dict(torch.load('./model/DCGAN.pth',
+    dcgan.load_state_dict(torch.load('./models/DCGAN.pth',
                         map_location=device))
     dcgan.eval()
     cgan = CGAN(100, 1, 28, 10, 100)
-    cgan.load_state_dict(torch.load('./model/CGAN.pth',
+    cgan.load_state_dict(torch.load('./models/CGAN.pth',
                         map_location=device))
     cgan.eval()
     return PytorchModel, ScikitModel, dcgan, cgan
 
-KerasModel = keras.models.load_model('./model/Keras.pth')
+KerasModel = keras.models.load_model('./models/Keras')
 PytorchModel, ScikitModel, dcgan, cgan = load_models()
 
 with st.sidebar:
@@ -124,7 +124,8 @@ if result:
     elif framework == 'Keras':
         array = np.array(image)
         array = array.reshape(1, 28, 28, 1)
-        outputs = KerasModel.predict(array).squeeze()
+        array = (array - np.mean(array))/np.std(array)
+        outputs = KerasModel.predict(array).squeeze() ** 0.2
         ind_max = np.where(outputs == max(outputs))[0][0]
 
     elif framework == 'scikit-learn':
@@ -147,10 +148,11 @@ if result:
 
 if page == "Generate":
     st.markdown("---")
-    st.subheader('DCGAN Generator Architecture')
-    st.code(
+    st.subheader(f'{genModel} Generator Architecture')
+    if genModel == 'DCGAN':
+        st.code(
         """
-class Generator(nn.Module):
+class DCGAN(nn.Module):
     def __init__(self, channels_noise, channels_img, features_g):
         super(Generator, self).__init__()
         self.gen = nn.Sequential(
@@ -183,7 +185,49 @@ class Generator(nn.Module):
     def forward(self, x):
         return self.gen(x)
         """
-    )
+        )
+
+    else:
+        st.code(
+        """
+class CGAN(nn.Module):
+    def __init__(self, channels_noise, channels_img, img_size, num_classes, embed_size):
+        super().__init__()
+        self.img_size = img_size
+        self.gen = nn.Sequential(
+            # Input: N x channels_noise | 1 x 100
+            self._block(channels_noise+embed_size, img_size * 32, 7, 1, 0),  # img: 7x7x896
+            self._block(img_size * 32, img_size * 16, 4, 2, 1),  # img: 14x14x448
+            self._block(img_size * 16, img_size * 8, 3, 1, 1),  # img: 14x14x224
+            self._block(img_size * 8, img_size * 4, 3, 1, 1),  # img: 14x14x112
+            nn.ConvTranspose2d(
+                img_size * 4, channels_img, kernel_size=4, stride=2, padding=1
+            ),
+            # Output: N x channels_img | 28x28x1
+            nn.Tanh(), # outputs values between -1 and 1
+        )
+        self.embed = nn.Embedding(num_classes, embed_size)
+
+    def _block(self, in_channels, out_channels, kernel_size, stride, padding):
+        return nn.Sequential(
+            nn.ConvTranspose2d(
+                in_channels,
+                out_channels,
+                kernel_size,
+                stride,
+                padding,
+                bias=False,
+            ),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(),
+        )
+
+    def forward(self, x, labels):
+        embedding = self.embed(labels).unsqueeze(2).unsqueeze(3)
+        x = torch.cat([x, embedding], dim=1)
+        return self.gen(x)
+        """
+        )
 
 st.markdown("---")
 if framework == 'Pytorch':
@@ -237,21 +281,43 @@ class Flatten(nn.Module):
 
 elif framework == 'Keras':
     st.subheader(
-        f'Model: {framework} | Test-Accuracy: 99.12%')
+        f'Model: {framework} | Test-Accuracy: 99.44%')
     st.write(
-        'Batchsize: 128, Epochs: 15')
+        'Batchsize: 64, Epochs: 30')
     st.code(
         '''
 model = keras.Sequential(
     [
-        keras.Input(shape=input_shape),
-        layers.Conv2D(32, kernel_size=(3, 3), activation="relu"),
-        layers.MaxPooling2D(pool_size=(2, 2)),
-        layers.Conv2D(64, kernel_size=(3, 3), activation="relu"),
-        layers.MaxPooling2D(pool_size=(2, 2)),
-        layers.Flatten(),
-        layers.Dropout(0.5),
-        layers.Dense(num_classes, activation="softmax"),
+        # 1x28x28
+        Conv2D(filters = 32, kernel_size = 5, strides = 1, padding="same", activation = 'relu', input_shape = (28,28,1), kernel_regularizer=l2(0.0005)),
+        # 32x28x28
+        Conv2D(filters = 32, kernel_size = 5, strides = 1, padding="same", use_bias=False),
+        # 32x28x28
+        BatchNormalization(),
+        Activation('relu'),
+        MaxPooling2D(pool_size = 2, strides = 2),
+        Dropout(0.25),
+        # 32x14x14
+        Conv2D(filters = 64, kernel_size = 3, strides = 1, activation = 'relu', kernel_regularizer=l2(0.0005)),
+        # 64x12x12
+        Conv2D(filters = 64, kernel_size = 3, strides = 1, use_bias=False),
+        # 64x10x10
+        BatchNormalization(),
+        Activation('relu'),
+        MaxPooling2D(pool_size = 2, strides = 2), # 64x5x5
+        Dropout(0.25),
+        Flatten(),
+        Dense(units = 256, use_bias=False), # 256
+        BatchNormalization(),
+        Activation('relu'),
+        Dense(units = 128, use_bias=False), # 128
+        BatchNormalization(),
+        Activation('relu'),
+        Dense(units = 84, use_bias=False), # 84
+        BatchNormalization(),
+        Activation('relu'),
+        Dropout(0.25),
+        Dense(units = 10, activation = 'softmax') # 10
     ]
 )
         '''
