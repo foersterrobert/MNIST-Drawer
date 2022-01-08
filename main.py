@@ -32,13 +32,14 @@ hide_streamlit_style = """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 st.title("MNIST-Drawer & Generator :pencil:")
 
-@st.experimental_singleton
+@st.experimental_singleton(func=None)
 def load_models():
     device = torch.device('cpu')
     PytorchModel = PytorchDrawer()
     PytorchModel.load_state_dict(torch.load('./models/Pytorch.pth',
                         map_location=device))
     PytorchModel.eval()
+    KerasModel = keras.models.load_model('./models/Keras')
     ScikitModel = pickle.load(open('./models/scikit-learn.sav', 'rb'))
     dcgan = DCGAN(100, 1, 28)
     dcgan.load_state_dict(torch.load('./models/DCGAN.pth',
@@ -48,10 +49,10 @@ def load_models():
     cgan.load_state_dict(torch.load('./models/CGAN.pth',
                         map_location=device))
     cgan.eval()
-    return PytorchModel, ScikitModel, dcgan, cgan
+    return PytorchModel, KerasModel, ScikitModel, dcgan, cgan
 
-KerasModel = keras.models.load_model('./models/Keras')
-PytorchModel, ScikitModel, dcgan, cgan = load_models()
+
+PytorchModel, KerasModel, ScikitModel, dcgan, cgan = load_models()
 
 with st.sidebar:
     page = st.radio("Page: ", ("Draw", "Generate"))
