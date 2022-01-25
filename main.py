@@ -9,6 +9,7 @@ from torchvision import transforms
 from tensorflow import keras
 import pickle
 from PytorchModels import PytorchDrawer, DCGAN, CGAN
+from PIL import Image
 
 def np_to_df(outputs):
     length = outputs.shape[0]
@@ -100,7 +101,9 @@ else:
             fake = dcgan(noise)
         fake = fake.reshape(28, 28, 1).detach().numpy().squeeze()
         fake = (fake - np.min(fake))/np.ptp(fake)
-        st.session_state['fake'] = fake
+        fake = Image.fromarray(fake)
+        fake = fake.resize((280, 280), resample=Image.NEAREST)
+        st.session_state['fake'] = np.array(fake)
     st.image(st.session_state['fake'], width=280)
 
 result = st.button(f"Predict with {framework}")
