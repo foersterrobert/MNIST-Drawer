@@ -152,7 +152,7 @@ if result:
 
 if page == "Generate":
     st.markdown("---")
-    st.markdown('<img src="https://raw.githubusercontent.com/foersterrobert/MNIST-Drawer/master/GANs/assets/movie.gif" width="80%" style="display: block; margin: auto;"/>', unsafe_allow_html=True)
+    st.markdown('<img src="https://raw.githubusercontent.com/foersterrobert/MNIST-Drawer/master/GANs/assets/gan.gif" width="80%" style="display: block; margin: auto;"/>', unsafe_allow_html=True)
     st.markdown("---")
     st.subheader(f'{genModel} Generator Architecture')
     if genModel == 'DCGAN':
