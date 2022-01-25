@@ -3,7 +3,7 @@
 ![MNIST-Drawer](https://robertfoerster.com/images/MNIST-Drawer.png)
 
 # GANs
-<img src="https://raw.githubusercontent.com/foersterrobert/MNIST-Drawer/master/GANs/assets/movie.gif" width="80%" style="display: block; margin: auto;"/>
+<img src="https://raw.githubusercontent.com/foersterrobert/MNIST-Drawer/master/GANs/assets/gan.gif" width="80%" style="display: block; margin: auto;"/>
 
 ## Fundamentals of GANs
 #### When building a Generative Adversarial Network we have two models competing with each other. One is called a Generator and the other a Discriminator. In our case, the Generator creates digits while the Discriminator compares them with real MNIST-digits and tries to decide whether they are fake or not. Both models are trained in parallel and continuously play a min-max game.
