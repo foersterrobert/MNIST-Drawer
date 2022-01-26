@@ -28,6 +28,7 @@ st.set_page_config(
 hide_streamlit_style = """
             <style>
             footer {visibility: hidden;}
+            div.row-widget.stRadio > div{flex-direction:row; gap: 5px;}
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -46,8 +47,8 @@ def load_models():
     dcgan.load_state_dict(torch.load('./models/DCGAN.pth',
                         map_location=device))
     dcgan.eval()
-    cgan = CGAN(100, 1, 28, 10, 100)
-    cgan.load_state_dict(torch.load('./models/CGAN.pth',
+    cgan = CGAN(100, 1, 28, 10, 20)
+    cgan.load_state_dict(torch.load('./models/CWGAN-GP.pth',
                         map_location=device))
     cgan.eval()
     return PytorchModel, KerasModel, ScikitModel, dcgan, cgan
@@ -55,17 +56,17 @@ def load_models():
 
 PytorchModel, KerasModel, ScikitModel, dcgan, cgan = load_models()
 
+page = st.radio("Page: ", ("Draw", "Generate"))
 with st.sidebar:
-    page = st.radio("Page: ", ("Draw", "Generate"))
     framework = st.selectbox(
         "Prediction-Model:", options=['Pytorch', 'Keras', 'scikit-learn'])
     if page == 'Draw':
         stroke_width = st.slider("Stroke width: ", 1, 50, 20)
     else:
         genModel = st.selectbox(
-            "Generator-Model:", options=['DCGAN', 'CGAN'])
-        if genModel == 'CGAN':
-            number = st.slider("CGAN Number: ", 0, 9, 0)
+            "Generator-Model:", options=['DCGAN', 'CWGAN-GP'])
+        if genModel == 'CWGAN-GP':
+            number = st.slider("CWGAN-GP Label: ", 0, 9, 0)
     st.markdown("---")
     st.markdown(
         """
@@ -89,13 +90,13 @@ if page == "Draw":
     )
 
 else:
-    if genModel == 'CGAN':
+    if genModel == 'CWGAN-GP':
         generate = st.button(f"Generate {number} using {genModel}")
     else:
         generate = st.button(f"Generate digit using {genModel}")
     if 'fake' not in st.session_state or generate:
         noise = torch.randn(1, 100, 1, 1)
-        if genModel == 'CGAN':
+        if genModel == 'CWGAN-GP':
             fake = cgan(noise, torch.tensor([number]))
         else:
             fake = dcgan(noise)
@@ -199,18 +200,20 @@ class DCGAN(nn.Module):
 class CGAN(nn.Module):
     def __init__(self, channels_noise, channels_img, img_size, num_classes, embed_size):
         super().__init__()
-        self.img_size = img_size
+        # Input: N x channels_noise | 1 x 100
         self.gen = nn.Sequential(
-            # Input: N x channels_noise | 1 x 100
-            self._block(channels_noise+embed_size, img_size * 32, 7, 1, 0),  # img: 7x7x896
-            self._block(img_size * 32, img_size * 16, 4, 2, 1),  # img: 14x14x448
-            self._block(img_size * 16, img_size * 8, 3, 1, 1),  # img: 14x14x224
-            self._block(img_size * 8, img_size * 4, 3, 1, 1),  # img: 14x14x112
+            self._block(channels_noise+embed_size, 512, 4, 1, 0),  # img: 4x4x432
+            self._block(512, 512, 3, 1, 1),  # img: 4x4x512
+            self._block(512, 448, 4, 1, 0),  # img: 7x7x512
+            self._block(448, 448, 3, 1, 1),  # img: 7x7x512
+            self._block(448, 256, 4, 2, 1),  # img: 14x14x448
+            self._block(256, 256, 3, 1, 1),  # img: 14x14x448
+            self._block(256, 128, 4, 2, 1),  # img: 28x28x112
             nn.ConvTranspose2d(
-                img_size * 4, channels_img, kernel_size=4, stride=2, padding=1
+                128, channels_img, kernel_size=3, stride=1, padding=1
             ),
             # Output: N x channels_img | 28x28x1
-            nn.Tanh(), # outputs values between -1 and 1
+            nn.Tanh(),
         )
         self.embed = nn.Embedding(num_classes, embed_size)
 
