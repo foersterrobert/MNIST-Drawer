@@ -118,7 +118,7 @@ if result:
 
     if framework == 'Pytorch':
         DataTransform = transforms.Compose([transforms.ToTensor(),
-                                            transforms.Normalize((0.1307,), (0.3081,))])
+                                            transforms.Normalize((0.5,), (0.5,))])
         tensor = DataTransform(image)
         image_tensor = tensor.unsqueeze_(0)
         with torch.no_grad():
@@ -241,50 +241,44 @@ class CGAN(nn.Module):
 st.markdown("---")
 if framework == 'Pytorch':
     st.subheader(
-        f'Model: {framework} | Test-Accuracy: 99.2% in Kaggle')
+        f'Model: {framework} | Test-Accuracy: 99.61% in Kaggle')
     st.write(
-        'Batchsize: 64, Epochs: 30, Learning-Rate: 0.001, Optimizer: Adam')
+        'Data-Augmentation: Rotation & Translation, Batchsize: 64, Epochs: 100, Learning-Rate: 0.001, Optimizer: Adam')
     st.code(
         '''
 class PytorchDrawer(nn.Module):
     def __init__(self):
         super().__init__()
-        # 1x28x28
-        self.cnn = nn.Sequential(
-            nn.Conv2d(1, 32, 5, 1, 2), # 32x28x28
-            nn.ReLU(),
-            nn.Conv2d(32, 32, 5, 1, 2, bias=False), # 32x28x28
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            nn.MaxPool2d(2, 2), # 32x14x14
-            nn.Conv2d(32, 64, 3, 1), # 64x12x12
-            nn.ReLU(),
-            nn.Conv2d(64, 64, 3, 1, bias=False), # 64x10x10
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.MaxPool2d(2, 2), # 64x5x5
+        self.seq = nn.Sequential(
+            self._block(1, 32, 3),
+            self._block(32, 48, 3),
+            self._block(48, 64, 3),
+            self._block(64, 80, 3),
+            self._block(80, 96, 3),
+            self._block(96, 112, 3),
+            self._block(112, 128, 3),
+            self._block(128, 144, 3),
+            self._block(144, 160, 3),
+            self._block(160, 176, 3),
             Flatten(),
-            nn.Linear(64*5*5, 256, bias=False), # 256
-            nn.BatchNorm1d(256),
-            nn.ReLU(),
-            nn.Linear(256, 128, bias=False), # 128
-            nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Linear(128, 84, bias=False), # 84
-            nn.BatchNorm1d(84),
-            nn.ReLU(),
-            nn.Dropout(0.25),
-            nn.Linear(84, 10), # 10
-            nn.LogSoftmax(dim=1)
+            nn.Linear(11264, 10, bias=False),
+            nn.BatchNorm1d(10),
+        )
+
+    def _block(self, input_dim, output_dim, kernel_size):
+        return nn.Sequential(
+            nn.Conv2d(input_dim, output_dim, kernel_size, bias=False),
+            nn.BatchNorm2d(output_dim),
+            nn.ReLU()
         )
 
     def forward(self, x):
-        x = self.cnn(x)
-        return x
+        x = self.seq(x)
+        return F.log_softmax(x, dim=1)
 
 class Flatten(nn.Module):
-    def forward(self, input):
-        return input.view(input.size(0), -1)
+    def forward(self, x):
+        return torch.flatten(x.permute(0, 2, 3, 1), 1)
         '''
     )
 
