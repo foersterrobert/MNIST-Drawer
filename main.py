@@ -333,7 +333,6 @@ elif framework == 'scikit-learn':
     st.code(
         '''
 clf = svm.SVC(gamma=0.001, probability=True)
-clf.fit(X_train, y_train)
         '''
     )
 
